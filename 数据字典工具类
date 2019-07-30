@@ -1,0 +1,90 @@
+----yml-------
+
+dicttype:
+  type_codes:
+    - NEWS_COLUMNS
+    - SYS_AREAS
+
+---DataDictUtiles.java---
+**
+ * @Dscription 数据字典工具类
+ * @Author lifan
+ * 2019/7/30
+ */
+@Component
+@Slf4j
+public class DataDictUtils {
+    private static final Map<String, Properties> dictionary = new HashMap<>();
+
+
+    @Autowired
+    DataType dataType;
+    @Autowired
+    PubDictDao dictDao;
+
+    @PostConstruct
+    public void init() {
+        List<String> type_codes = dataType.getType_codes();
+        for (String typeCode : type_codes) {
+
+            List<PubDictDataModel> dictDataModels = dictDao.seletDictData(typeCode);
+            if (CollectionUtils.isEmpty(dictDataModels)) {
+                continue;
+            }
+            Properties properties = new Properties();
+            dictionary.put(typeCode, properties);
+            for (PubDictDataModel item : dictDataModels) {
+                properties.put(item.getData_code(), item.getData_value());
+            }
+        }
+
+    }
+
+    public static  String getDictValue(String typeCode,String data_code){
+        if(null == dictionary.get(typeCode)){
+            return null;
+        }
+        return (String)dictionary.get(typeCode).get(data_code);
+    }
+
+    public static  Properties getDictValues(String typeCode) {
+        return dictionary.get(typeCode);
+    }
+
+}
+
+
+---DataType.java---
+@Component
+@ConfigurationProperties("dicttype")
+@Data
+public class DataType {
+    List<String> type_codes;
+}
+
+---PubDictDao.java---
+public interface PubDictDao {
+    List<PubDictDataModel> seletDictData(String typeCode);
+}
+
+---PubDicdtDao.xml---
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.unicom.gesp.dao.PubDictDao">
+
+    <!--自定义查询语句-->
+    <select id="seletDictData" parameterType="java.lang.String"
+            resultType="com.unicom.gesp.dao.model.PubDictDataModel">
+
+       SELECT
+	        data_code,
+	        data_value
+            FROM
+	        pub_dict_data
+            WHERE
+	        type_code = #{typeCode,jdbcType=VARCHAR};
+    </select>
+
+</mapper>
+
+
