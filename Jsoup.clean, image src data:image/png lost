@@ -1,0 +1,7 @@
+This is how to allow basic text with inline images like src="data:image/png;base64,...":
+
+
+String safe = Jsoup.clean(unsafe, Whitelist.basic()
+.addTags("img")
+.addAttributes("img", "height", "src", "width")
+.addProtocols("img", "src", "http", "https", "data"));
