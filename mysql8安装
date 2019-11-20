@@ -1,0 +1,154 @@
+mysql8安装
+
+安装环境：Centos7
+
+版本：mysql-8.0.16-2.el7.x86_64.rpm-bundle.tar
+
+
+
+1、在/usr/local下新建目录mysql
+
+[root@VM_0_14_centos local]# cd /usr/local
+
+[root@VM_0_14_centos local]# mkdir mysql
+
+
+
+2、进入mysql8安装包所在目录，将安装包解压到/usr/local/mysql目录下
+
+[root@VM_0_14_centos chiu]# cd /usr/local/chiu
+
+[root@VM_0_14_centos chiu]# tar -xvf mysql-8.0.16-2.el7.x86_64.rpm-bundle.tar -C /usr/local/mysql
+
+
+3、进入/usr/local/musql目录
+
+[root@VM_0_14_centos chiu]# cd /usr/local/mysql
+
+
+4、查看mariadb 的安装包
+
+[root@VM_0_14_centos mysql]# rpm -qa | grep mariadb
+
+
+5、装卸mariadb
+
+[root@VM_0_14_centos mysql]# rpm -e mariadb-libs-5.5.52-1.el7.x86_64 --nodeps
+
+
+6、再次查看mariadb 的安装包，显示啥也没有就对了
+
+[root@VM_0_14_centos mysql]# rpm -qa | grep mariadb
+
+
+7、安装common
+
+[root@VM_0_14_centos mysql]# rpm -ivh mysql-community-common-8.0.16-2.el7.x86_64.rpm --nodeps --force
+
+
+8、安装libs
+
+[root@VM_0_14_centos mysql]# rpm -ivh mysql-community-libs-8.0.16-2.el7.x86_64.rpm --nodeps --force
+
+
+9、安装client
+
+[root@VM_0_14_centos mysql]# rpm -ivh mysql-community-client-8.0.16-2.el7.x86_64.rpm --nodeps --force
+
+
+10、安装server
+
+[root@VM_0_14_centos mysql]# rpm -ivh mysql-community-server-8.0.16-2.el7.x86_64.rpm --nodeps --force
+
+
+11、查看已安装的mysql rpm包
+
+[root@VM_0_14_centos mysql]# rpm -qa|grep mysql
+
+
+12、完成对mysql 数据库的初始化和相关配置
+
+[root@VM_0_14_centos mysql]# mysqld --initialize
+
+如果出现下图中错误执行yum -y install numactl
+
+
+[root@VM_0_14_centos mysql]# yum -y install numactl
+
+
+成功后依次执行以下命令
+
+[root@VM_0_14_centos mysql]# mysqld --initialize
+
+[root@VM_0_14_centos mysql]# chown mysql:mysql /var/lib/mysql -R
+
+[root@VM_0_14_centos mysql]# service mysqld start
+
+
+13、查看数据库的密码
+
+[root@VM_0_14_centos mysql]# cat /var/log/mysqld.log | grep password
+
+
+14、进入数据库登陆界面
+
+[root@VM_0_14_centos mysql]# mysql -uroot -p
+
+
+复制上一步查到的密码，进行数据库的登陆，直接粘贴就行，MySQL 的登陆密码是不显示的
+
+
+15、修改密码
+
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
+
+
+16、退出MySQL，然后通过新密码再次登陆
+
+mysql> exit;
+
+[root@VM_0_14_centos mysql]# mysql -uroot -proot
+
+
+17、通过以下命令，进行远程访问的授权
+
+mysql> create user 'root'@'%' identified with mysql_native_password by 'root';
+
+mysql> grant all privileges on *.* to 'root'@'%' with grant option;
+
+mysql> flush privileges;
+
+
+18、修改加密规则，MySql8.0 版本 和 5.0 的加密规则不一样，而现在的可视化工具只支持旧的加密方式。
+
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY 'root' PASSWORD EXPIRE NEVER;
+
+mysql> flush privileges;
+
+
+19、退出MySQL
+
+mysql> exit;
+
+
+20、远程访问mysql开放服务器端口
+
+[root@VM_0_14_centos ~]# firewall-cmd --zone=public --add-port=3306/tcp --permanent
+
+
+21、重启防火墙
+
+[root@VM_0_14_centos ~]# systemctl restart firewalld.service
+
+
+22、如果闲开放端口费事可以关闭防火墙
+
+[root@VM_0_14_centos ~]# systemctl stop firewalld.service
+
+23、如果闲每次开机都需要关闭防火墙可以禁用防火墙
+
+[root@VM_0_14_centos ~]# systemctl disable firewalld.service
+
+24、navicat连接
+
+
