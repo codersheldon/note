@@ -1,0 +1,48 @@
+在执行上述tensorflow项目时报错，缺少GLIBC_2.18，参数如下内容得到解决：
+
+curl -O http://ftp.gnu.org/gnu/glibc/glibc-2.18.tar.gz
+tar zxf glibc-2.18.tar.gz 
+cd glibc-2.18/
+mkdir build
+cd build/
+../configure --prefix=/usr
+make -j2
+make install
+
+
+GCC版本中没有GLIBCXX_3.4.15解决
+
+un: /usr/lib/libstdc++.so.6: version `GLIBCXX_3.4.15"" not found
+
+解决错误
+呈现该错误的原因是当前的GCC版本中，没有GLIBCXX_3.4.15，须要安装更高版本。
+我们可以输入：strings /usr/lib/libstdc++.so.6 | grep GLIBCXX，查看当前的GCC版本，成果如下：
+GLIBCXX_3.4
+GLIBCXX_3.4.1 GLIBCXX_3.4.2 GLIBCXX_3.4.3 GLIBCXX_3.4.4 GLIBCXX_3.4.5
+GLIBCXX_3.4.6 GLIBCXX_3.4.7 GLIBCXX_3.4.8 GLIBCXX_3.4.9 GLIBCXX_3.4.10
+GLIBCXX_3.4.11 GLIBCXX_3.4.12 GLIBCXX_3.4.13 GLIBC_2.0 GLIBC_2.3
+GLIBC_2.4 GLIBC_2.1 GLIBC_2.1.3 GLIBC_2.3.2 GLIBC_2.2 GLIBCXX_FORCE_NEW
+GLIBCXX_DEBUG_MESSAGE_LENGTH
+可见没有GLIBCXX_3.4.15.
+新版本，地址：http://ftp.de.debian.org/debian/pool/main/g/gcc-4.7/libstdc++6_4.7.2-5_i386.deb
+假设的文件放在Download/。
+解压：ar -x libstdc++6_4.7.2-5_i386.deb && tar xvf data.tar.gz
+解压后呈现Download/usr目次；
+1）cd Download/usr/lib/i380-linux-gun
+2） su root
+3） cp libstdc++.so.6.0.17 /usr/lib
+4） cd /usr/lib
+5） rm libstdc++.so.6
+6） ln libstdc++.so.6.0.17 libstdc++.so.6从头建树软连接
+
+或者如果本来系统里面已经安装了更高版本的gcc，对应的我们可以从/usr/lib/i386-linux-gnu中找到libstdc++.so.6.0.17，
+直接将其从原目录复制到目标目录，然后按照上面的步骤5）、6）进行处理；
+
+这时，我们再输入：strings /usr/lib/libstdc++.so.6 | grep GLIBCXX，成果为：
+GLIBCXX_3.4
+GLIBCXX_3.4.1 GLIBCXX_3.4.2 GLIBCXX_3.4.3 GLIBCXX_3.4.4 GLIBCXX_3.4.5
+GLIBCXX_3.4.6 GLIBCXX_3.4.7 GLIBCXX_3.4.8 GLIBCXX_3.4.9 GLIBCXX_3.4.10
+GLIBCXX_3.4.11 GLIBCXX_3.4.12 GLIBCXX_3.4.13 GLIBCXX_3.4.14
+GLIBCXX_3.4.15 GLIBCXX_3.4.16 GLIBCXX_3.4.17
+GLIBCXX_DEBUG_MESSAGE_LENGTH
+
