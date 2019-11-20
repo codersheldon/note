@@ -1,0 +1,95 @@
+第一步：下载安装包
+
+      访问https://redis.io/download  到官网进行下载。这里下载最新的4.0版本.
+
+      
+
+第二步：安装
+
+      1.通过远程管理工具，将压缩包拷贝到Linux服务器中，执行解压操作
+
+       
+
+       tar -zxf redis-4.0.9.tar.gz
+
+       2.进入解压文件目录使用make对解压的Redis文件进行编译
+
+       图示：这里因为我redis的安装目录在 /usr/locat/  目录下，因此会有如下操作
+
+      
+
+      
+
+      注：如果在编译过程中出现问题，有可能是安装包下载的有误，这里可以尝试的用别人下载的安装包或者直接用
+
+      wget http://download.redis.io/releases/redis-4.0.9.tar.gz
+
+      如果发现上述读不能解决问题，请参照该链接：https://www.cnblogs.com/liu2-/p/6914159.html
+
+      编译完成之后，可以看到解压文件redis-3.0.7 中会有对应的src、conf等文件夹
+
+      
+
+      3.编译成功后，进入src文件夹，执行make install进行Redis安装。
+
+       如下图示安装完成，界面如下：
+      
+
+ 第三步：部署
+
+        1.为了方便管理，将Redis文件中的conf配置文件和常用命令移动到统一文件中
+
+            1）、创建bin和etc文件
+
+                  如图示：
+
+                  
+
+           2）、回到刚刚安装目录，找到redis.conf，将其复制移动到 /usr/local/redis/ect 下
+
+                  执行命令如下：
+
+                  mv redis.conf /usr/local/redis/etc/
+
+                  
+
+ 
+
+                  进入src目录，移动mkreleasehdr.sh redis-benchmark redis-check-aof redis-check-rdb redis-cli redis-server到/usr/local/redis/bin/
+
+                  执行命令 ：mv mkreleasehdr.sh redis-benchmark redis-check-aof redis-check-rdb redis-cli redis-server /usr/local/redis/bin/
+
+                  
+
+                 依次查看移动后文件
+
+                 
+
+         2、执行redis-server 启动redis
+
+                 
+
+      3、设置绑定ip（注：该步骤如果不需要可省略）
+
+          
+
+        如需要，可将上图绑定ip改为指定ip。
+
+      4、设置后台启动redis
+
+            1）、首先编辑conf文件，将daemonize属性改为yes（表明需要在后台运行）
+
+                   cd etc/
+                   vim redis.conf
+
+                  
+
+                 将no修改为yes
+
+            2)、再次启动redis服务，并指定启动服务配置文件
+
+                  redis-server /usr/local/redis/etc/redis.conf
+
+                 
+
+                配置后台运行成功。
