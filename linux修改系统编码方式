@@ -1,0 +1,14 @@
+1.执行命令:vim /etc/profile
+
+
+2.在文件最后添加两行
+export LC_ALL="zh_CN.UTF-8"
+export LANG="zh_CN.UTF-8"
+
+
+
+3.刷新文件 ：source /etc/profile
+
+
+4.查看系统编码方式:  locale
+
