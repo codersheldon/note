@@ -1,0 +1,291 @@
+ 
+ https://blog.csdn.net/sunweiguo1/article/details/80470792
+ 
+ rabbitMQ-Direct交换机
+这种模式是最简单的模式，就发送一串字符串，这个字符串为key，接收的时候也完全以这个字符串本来来确定，不需要绑定任何exchange，使用默认的就行。我们以这个模式开始在原来的项目上继续集成。
+
+首先是引入依赖：
+
+<!--rabbitMQ-->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-amqp</artifactId>
+</dependency>
+1
+2
+3
+4
+5
+appilication.yml:
+
+spring:
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 10
+        max-concurrency: 10
+        prefetch: 1
+        auto-startup: true
+        default-requeue-rejected: true
+    template:
+      retry:
+        enabled: true
+        initial-interval: 1000
+        max-attempts: 3
+        max-interval: 10000
+        multiplier: 1.0
+
+rabbitMQ配置类MQConfig：
+
+@Configuration
+public class MQConfig {
+    //MQ name
+    public static final String DIRECT_QUEUE_NAME = "queue";
+    @Bean
+    public Queue queue(){
+        return new Queue(QUEUE_NAME,true);
+    }
+}
+
+发送者MQSender：
+
+@Service
+@Slf4j
+public class MQSender {
+
+    @Autowired
+    private AmqpTemplate amqpTemplate;
+
+    public void send(Object message){
+        amqpTemplate.convertAndSend(MQConfig.DIRECT_QUEUE_NAME,message);
+        log.info("send:{}",message);
+    }
+}
+
+接收者MQReceiver：
+
+@Service
+@Slf4j
+public class MQReceiver {
+
+    @RabbitListener(queues = MQConfig.DIRECT_QUEUE_NAME)
+    public void receive(String message){
+        log.info("receive:{}",message);
+    }
+}
+
+这样，就完成了最简单的一个字符串的发送-接受。可以在controller中随便测试一下：
+
+@Controller
+@RequestMapping("/test")
+public class TestController {
+    @Autowired
+    private MQSender mqSender;
+
+    @RequestMapping("/mq")
+    @ResponseBody
+    public String mq(){
+        mqSender.send("hello world");
+        return "success";
+    }
+}
+
+
+
+rabbitMQ-Topic交换机
+这个模式正如上面所言，是可以匹配通配符的，显然更加灵活，这里用程序测试一下这个模式效果。
+
+MQConfig：
+
+先来几个常量：
+
+//queue1名字
+public static final String TOPIC_QUEUE_NAME1 = "topic.queue1";
+//queue2名字
+public static final String TOPIC_QUEUE_NAME2 = "topic.queue2";
+//交换机名字
+public static final String TOPIC_EXCHANGE_NAME = "topicExchange";
+//key等于topic.key1的，后面将配置为只被queue1接收
+private static final String TOPIC_KEY_ROUTE1 = "topic.key1";
+//key匹配topic.#的都被接收进queue2
+private static final String TOPIC_KEY_ROUTE2 = "topic.#";
+
+下面配置几个bean：
+
+注：带有 @Configuration 的注解类表示这个类可以使用 Spring IoC 容器作为 bean 定义的来源。@Bean 注解告诉 Spring，一个带有 @Bean 的注解方法将返回一个对象，该对象应该被注册为在 Spring 应用程序上下文中的 bean。
+
+//创建两个QUEUE对象queue1，queue2的bean被spring管理
+@Bean
+public Queue topicQueue1(){
+    return new Queue(TOPIC_QUEUE_NAME1,true);
+}
+@Bean
+public Queue topicQueue2(){
+    return new Queue(TOPIC_QUEUE_NAME2,true);
+}
+//交换机
+@Bean
+public TopicExchange topicExchange(){
+    return new TopicExchange(TOPIC_EXCHANGE_NAME);
+}
+//queue1--交换机--匹配规则1
+@Bean
+public Binding topicBinding1(){
+    return BindingBuilder.bind(topicQueue1()).to(topicExchange()).with(TOPIC_KEY_ROUTE1);
+}
+//queue2--交换机--匹配规则2
+@Bean
+public Binding topicBinding2(){
+    return BindingBuilder.bind(topicQueue2()).to(topicExchange()).with(TOPIC_KEY_ROUTE2);
+}
+
+MQSender：
+
+//消息1与topic.key1和topic.#都匹配；
+//消息2与topic.key1不匹配，只与topic.#匹配，那么只能被queue2接收
+public void sendTopic(Object message){
+    log.info("send topic msg:{}",message);
+    amqpTemplate.convertAndSend(MQConfig.TOPIC_EXCHANGE_NAME,"topic.key1",message+"--1");
+    amqpTemplate.convertAndSend(MQConfig.TOPIC_EXCHANGE_NAME,"topic.key2",message+"--2");
+
+}
+
+MQReceiver：
+
+@RabbitListener(queues = MQConfig.TOPIC_QUEUE_NAME1)
+public void receiveTopic1(String message){
+    log.info("topic queue1 receive:{}",message);
+}
+
+@RabbitListener(queues = MQConfig.TOPIC_QUEUE_NAME2)
+public void receiveTopic2(String message){
+    log.info("topic queue2 receive:{}",message);
+}
+
+最后测试一把：
+
+@RequestMapping("/mq/topic")
+@ResponseBody
+public String mq_topic(){
+    mqSender.sendTopic("hello world");
+    return "success";
+}
+
+运行结果：
+
+2018-05-26 18:59:40.281  INFO 9920 --- [nio-8080-exec-1] com.swg.miaosha.mq.MQSender : send topic msg:hello world
+2018-05-26 18:59:40.303  INFO 9920 --- [cTaskExecutor-1] com.swg.miaosha.mq.MQReceiver : topic queue2 receive:hello world--1
+2018-05-26 18:59:40.303  INFO 9920 --- [TaskExecutor-10] com.swg.miaosha.mq.MQReceiver : topic queue2 receive:hello world--2
+2018-05-26 18:59:40.303  INFO 9920 --- [cTaskExecutor-1] com.swg.miaosha.mq.MQReceiver : topic queue1 receive:hello world--1
+
+
+
+rabbitMQ-Fanout交换机
+这种就是广播模式，即所有的绑定到指定的exchange上的queue都可以接收消息。
+
+MQConfig：
+
+public static final String FANOUT_EXCHANGE_NAME = "fanoutExchage";
+public static final String FANOUT_QUEUE_NAME1 = "fanout.queue1";
+public static final String FANOUT_QUEUE_NAME2 = "fanout.queue2";
+
+
+@Bean
+    public Queue fanoutQueue1(){
+    return new Queue(FANOUT_QUEUE_NAME1,true);
+}
+@Bean
+public Queue fanoutQueue2(){
+    return new Queue(FANOUT_QUEUE_NAME2,true);
+}
+@Bean
+public FanoutExchange fanoutExchange(){
+    return new FanoutExchange(FANOUT_EXCHANGE_NAME);
+}
+@Bean
+public Binding fanoutBinding1(){
+    return BindingBuilder.bind(fanoutQueue1()).to(fanoutExchange());
+}
+@Bean
+public Binding fanoutBinding2(){
+    return BindingBuilder.bind(fanoutQueue2()).to(fanoutExchange());
+}
+
+MQSender：
+
+public void sendFanout(Object message){
+    log.info("send fanout msg:{}",message);
+    amqpTemplate.convertAndSend(MQConfig.FANOUT_EXCHANGE_NAME,"",message);
+}
+
+MQReceiver：
+
+@RabbitListener(queues = MQConfig.FANOUT_QUEUE_NAME1)
+public void receiveFanout1(String message){
+    log.info("fanout queue1 receive:{}",message);
+}
+
+@RabbitListener(queues = MQConfig.FANOUT_QUEUE_NAME2)
+public void receiveFanout2(String message){
+    log.info("fanout queue2 receive:{}",message);
+}
+
+运行结果：
+
+2018-05-26 20:03:29.592  INFO 16680 --- [nio-8080-exec-1] com.swg.miaosha.mq.MQSender              : send fanout msg:hello world
+2018-05-26 20:03:29.619  INFO 16680 --- [cTaskExecutor-1] com.swg.miaosha.mq.MQReceiver            : fanout queue1 receive:hello world
+2018-05-26 20:03:29.619  INFO 16680 --- [cTaskExecutor-1] com.swg.miaosha.mq.MQReceiver            : fanout queue2 receive:hello world
+
+queue1和queue2都接受到了消息。
+
+
+rabbitMQ-Headers交换机
+MQConfig：
+
+public static final String HEADERS_EXCHANGE_NAME = "headersExchage";
+public static final String HEADERS_QUEUE_NAME = "headers.queue";
+
+@Bean
+public HeadersExchange headersExchange(){
+    return new HeadersExchange(HEADERS_EXCHANGE_NAME);
+}
+@Bean
+public Queue headersQueue(){
+    return new Queue(HEADERS_QUEUE_NAME,true);
+}
+//就是说要完全匹配这个Map才能进入queue中发送出去
+@Bean
+public Binding headersBinding(){
+    Map<String,Object> map = new HashMap<>();
+    map.put("header1","value1");
+    map.put("header2","value2");
+    return BindingBuilder.bind(headersQueue()).to(headersExchange()).whereAll(map).match();
+}
+
+MQSender：
+
+//map要一样
+public void sendHeaders(Object message){
+    String msg = RedisService.beanToString(message);
+    log.info("send fanout msg:{}",message);
+    MessageProperties properties = new MessageProperties();
+    properties.setHeader("header1","value1");
+    properties.setHeader("header2","value2");
+    Message obj = new Message(msg.getBytes(),properties);
+    amqpTemplate.convertAndSend(MQConfig.HEADERS_EXCHANGE_NAME,"",obj);
+}
+
+MQReceiver：
+
+@RabbitListener(queues = MQConfig.HEADERS_QUEUE_NAME)
+public void receiveHeaders(byte[] message){
+    log.info("fanout queue2 receive:{}",new String(message));
+}
+
+
+
